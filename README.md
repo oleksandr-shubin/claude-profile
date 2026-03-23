@@ -7,7 +7,9 @@ Switch between multiple Claude Code accounts from the terminal.
 Source the script in your shell config (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
-source /path/to/claude-profile.sh
+cp claude-profile.sh ~/.claude-profile.sh
+echo 'source ~/.claude-profile.sh' >> ~/.bashrc
+source ~/.claude-profile.sh
 ```
 
 Profiles are stored in `~/.claude-profiles/`.
