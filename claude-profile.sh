@@ -24,6 +24,12 @@ claude() {
     unset _last
   fi
   command claude "$@"
+  # auto-save profile after claude exits
+  if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
+    _last=$(cat "$CLAUDE_PROFILE_STATE")
+    [[ -n "$_last" ]] && claude-profile save "$_last" > /dev/null 2>&1
+    unset _last
+  fi
 }
 
 claude-profile() {
@@ -45,9 +51,10 @@ claude-profile() {
       if [[ -z "$name" ]]; then echo "Usage: claude-profile save <n>"; return 1; fi
       local dir="$CLAUDE_PROFILES_DIR/$name"
       mkdir -p "$dir"
-      [[ -f "$HOME/.claude/.credentials.json" ]] && cp "$HOME/.claude/.credentials.json" "$dir/.credentials.json"
-      [[ -f "$HOME/.claude/settings.json" ]]     && cp "$HOME/.claude/settings.json"     "$dir/settings.json"
-      [[ -f "$HOME/.claude.json" ]]              && cp "$HOME/.claude.json"              "$dir/claude.json"
+      local src="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+      [[ -f "$src/.credentials.json" ]] && cp "$src/.credentials.json" "$dir/.credentials.json"
+      [[ -f "$src/settings.json" ]]     && cp "$src/settings.json"     "$dir/settings.json"
+      [[ -f "$HOME/.claude.json" ]]     && cp "$HOME/.claude.json"     "$dir/claude.json"
       echo "✓ Saved current session as '$name'"
       ;;
     use)
