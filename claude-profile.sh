@@ -62,11 +62,16 @@ claude-profile() {
       if [[ -z "$name" ]]; then echo "Usage: claude-profile use <n>"; return 1; fi
       local dir="$CLAUDE_PROFILES_DIR/$name"
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
-      # Symlink shared agents directory if not already present
+      # Symlink shared agents and skills directories if not already present
       local agents_src="$HOME/.claude/agents"
       local agents_dst="$dir/agents"
       if [[ -d "$agents_src" && ! -e "$agents_dst" ]]; then
         ln -s "$agents_src" "$agents_dst"
+      fi
+      local skills_src="$HOME/.claude/skills"
+      local skills_dst="$dir/skills"
+      if [[ -d "$skills_src" && ! -e "$skills_dst" ]]; then
+        ln -s "$skills_src" "$skills_dst"
       fi
       export CLAUDE_CONFIG_DIR="$dir"
       echo "$name" > "$CLAUDE_PROFILE_STATE"
