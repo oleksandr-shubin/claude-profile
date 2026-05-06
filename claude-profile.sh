@@ -77,6 +77,25 @@ claude-profile() {
       echo "$name" > "$CLAUDE_PROFILE_STATE"
       echo "✓ Switched to '$name'"
       ;;
+    run)
+      local name="$2"
+      if [[ -z "$name" ]]; then echo "Usage: claude-profile run <n> [claude args...]"; return 1; fi
+      local dir="$CLAUDE_PROFILES_DIR/$name"
+      if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
+      shift 2
+      local agents_src="$HOME/.claude/agents"
+      local agents_dst="$dir/agents"
+      if [[ -d "$agents_src" && ! -e "$agents_dst" ]]; then
+        ln -s "$agents_src" "$agents_dst"
+      fi
+      local skills_src="$HOME/.claude/skills"
+      local skills_dst="$dir/skills"
+      if [[ -d "$skills_src" && ! -e "$skills_dst" ]]; then
+        ln -s "$skills_src" "$skills_dst"
+      fi
+      CLAUDE_CONFIG_DIR="$dir" command claude "$@"
+      CLAUDE_CONFIG_DIR="$dir" claude-profile save "$name" > /dev/null 2>&1
+      ;;
     unset|default)
       unset CLAUDE_CONFIG_DIR
       rm -f "$CLAUDE_PROFILE_STATE"
@@ -123,13 +142,15 @@ claude-profile() {
       cat <<'EOF'
 claude-profile — manage Claude Code account profiles
 
-  claude-profile add <n>     Create a new profile slot
-  claude-profile save <n>    Snapshot current session into profile
-  claude-profile use <n>     Switch to a profile
-  claude-profile list           List all profiles
-  claude-profile current        Show active profile
-  claude-profile remove <n>  Delete a profile
-  claude-profile unset          Go back to default ~/.claude
+  claude-profile add <n>            Create a new profile slot
+  claude-profile save <n>           Snapshot current session into profile
+  claude-profile use <n>            Switch to a profile (persists across terminals)
+  claude-profile run <n> [args]     Launch claude with a profile for one session
+                                    without changing the default
+  claude-profile list               List all profiles
+  claude-profile current            Show active profile
+  claude-profile remove <n>         Delete a profile
+  claude-profile unset              Go back to default ~/.claude
 
 Last active profile is automatically restored in every new terminal.
 Switching profiles syncs across all terminals on next 'claude' run.

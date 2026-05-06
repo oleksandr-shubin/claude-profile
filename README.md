@@ -8,7 +8,8 @@ Source the script in your shell config (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
 cp claude-profile.sh ~/.claude-profile.sh
-echo 'source ~/.claude-profile.sh' >> ~/.bashrc
+# add source line only if not exists
+grep -qxF 'source ~/.claude-profile.sh' ~/.bashrc || echo 'source ~/.claude-profile.sh' >> ~/.bashrc
 source ~/.claude-profile.sh
 ```
 
@@ -41,6 +42,14 @@ claude-profile use work
 ```
 
 The active profile persists across terminal sessions and is auto-restored on shell start.
+
+### One-off session with another profile
+
+```bash
+claude-profile run personal
+```
+
+Launches `claude` with the given profile for a single session without changing the default. Other terminals keep using the active profile. Extra arguments are forwarded to `claude`.
 
 ### Other commands
 
