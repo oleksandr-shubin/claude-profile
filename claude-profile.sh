@@ -28,22 +28,21 @@ if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
   unset _last
 fi
 
-# Override claude command to always sync profile before launching
+# Override claude command to always sync profile before launching.
+# Profile is pinned at entry so post-save can't cross-contaminate if .active
+# changes mid-session.
 claude() {
+  local _profile=""
   if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
-    _last=$(cat "$CLAUDE_PROFILE_STATE")
-    if [[ -d "$CLAUDE_PROFILES_DIR/$_last" ]]; then
-      export CLAUDE_CONFIG_DIR="$CLAUDE_PROFILES_DIR/$_last"
+    _profile=$(cat "$CLAUDE_PROFILE_STATE")
+    if [[ -d "$CLAUDE_PROFILES_DIR/$_profile" ]]; then
+      export CLAUDE_CONFIG_DIR="$CLAUDE_PROFILES_DIR/$_profile"
+    else
+      _profile=""
     fi
-    unset _last
   fi
   command claude "$@"
-  # auto-save profile after claude exits
-  if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
-    _last=$(cat "$CLAUDE_PROFILE_STATE")
-    [[ -n "$_last" ]] && claude-profile save "$_last" > /dev/null 2>&1
-    unset _last
-  fi
+  [[ -n "$_profile" ]] && claude-profile save "$_profile" > /dev/null 2>&1
 }
 
 claude-profile() {
@@ -66,9 +65,15 @@ claude-profile() {
       local dir="$CLAUDE_PROFILES_DIR/$name"
       mkdir -p "$dir"
       local src="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-      [[ -f "$src/.credentials.json" ]] && cp "$src/.credentials.json" "$dir/.credentials.json"
-      [[ -f "$src/settings.json" ]]     && cp "$src/settings.json"     "$dir/settings.json"
-      [[ -f "$HOME/.claude.json" ]]     && cp "$HOME/.claude.json"     "$dir/claude.json"
+      # Refuse cross-profile save: src must be the target dir or default ~/.claude.
+      # Prevents copying credentials between profiles when CLAUDE_CONFIG_DIR is stale.
+      if [[ "$src" != "$dir" && "$src" != "$HOME/.claude" ]]; then
+        echo "✗ Refusing to save: CLAUDE_CONFIG_DIR ($src) is not the '$name' profile dir."
+        echo "  Run 'claude-profile use $name' first."
+        return 1
+      fi
+      [[ -f "$src/.credentials.json" && "$src" != "$dir" ]] && cp "$src/.credentials.json" "$dir/.credentials.json"
+      [[ -f "$src/settings.json"     && "$src" != "$dir" ]] && cp "$src/settings.json"     "$dir/settings.json"
       echo "✓ Saved current session as '$name'"
       ;;
     use)
