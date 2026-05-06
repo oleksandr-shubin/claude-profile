@@ -5,6 +5,20 @@
 CLAUDE_PROFILES_DIR="$HOME/.claude-profiles"
 CLAUDE_PROFILE_STATE="$CLAUDE_PROFILES_DIR/.active"
 
+# Symlink shared resources from ~/.claude into a profile dir, unless already present.
+# A real file/dir at the destination overrides the shared default.
+_claude_profile_link_shared() {
+  local dir="$1"
+  local item
+  for item in agents skills statusline.sh; do
+    local src="$HOME/.claude/$item"
+    local dst="$dir/$item"
+    if [[ -e "$src" && ! -e "$dst" ]]; then
+      ln -s "$src" "$dst"
+    fi
+  done
+}
+
 # Auto-restore last active profile on shell start
 if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
   _last=$(cat "$CLAUDE_PROFILE_STATE")
@@ -62,17 +76,7 @@ claude-profile() {
       if [[ -z "$name" ]]; then echo "Usage: claude-profile use <n>"; return 1; fi
       local dir="$CLAUDE_PROFILES_DIR/$name"
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
-      # Symlink shared agents and skills directories if not already present
-      local agents_src="$HOME/.claude/agents"
-      local agents_dst="$dir/agents"
-      if [[ -d "$agents_src" && ! -e "$agents_dst" ]]; then
-        ln -s "$agents_src" "$agents_dst"
-      fi
-      local skills_src="$HOME/.claude/skills"
-      local skills_dst="$dir/skills"
-      if [[ -d "$skills_src" && ! -e "$skills_dst" ]]; then
-        ln -s "$skills_src" "$skills_dst"
-      fi
+      _claude_profile_link_shared "$dir"
       export CLAUDE_CONFIG_DIR="$dir"
       echo "$name" > "$CLAUDE_PROFILE_STATE"
       echo "✓ Switched to '$name'"
@@ -83,16 +87,7 @@ claude-profile() {
       local dir="$CLAUDE_PROFILES_DIR/$name"
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
       shift 2
-      local agents_src="$HOME/.claude/agents"
-      local agents_dst="$dir/agents"
-      if [[ -d "$agents_src" && ! -e "$agents_dst" ]]; then
-        ln -s "$agents_src" "$agents_dst"
-      fi
-      local skills_src="$HOME/.claude/skills"
-      local skills_dst="$dir/skills"
-      if [[ -d "$skills_src" && ! -e "$skills_dst" ]]; then
-        ln -s "$skills_src" "$skills_dst"
-      fi
+      _claude_profile_link_shared "$dir"
       CLAUDE_CONFIG_DIR="$dir" command claude "$@"
       CLAUDE_CONFIG_DIR="$dir" claude-profile save "$name" > /dev/null 2>&1
       ;;
