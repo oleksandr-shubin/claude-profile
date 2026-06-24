@@ -96,7 +96,11 @@ claude-profile() {
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
       shift 2
       _claude_profile_link_shared "$dir"
-      CLAUDE_CONFIG_DIR="$dir" command claude "$@"
+      (
+        export CLAUDE_CONFIG_DIR="$dir"
+        [[ -f "$dir/profile.env" ]] && . "$dir/profile.env"
+        command claude "$@"
+      )
       CLAUDE_CONFIG_DIR="$dir" claude-profile save "$name" > /dev/null 2>&1
       ;;
     unset|default)
