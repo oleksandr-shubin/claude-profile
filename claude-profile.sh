@@ -41,7 +41,10 @@ claude() {
       _profile=""
     fi
   fi
-  command claude "$@"
+  (
+    [[ -f "$CLAUDE_CONFIG_DIR/profile.env" ]] && . "$CLAUDE_CONFIG_DIR/profile.env"
+    command claude "$@"
+  )
   [[ -n "$_profile" ]] && claude-profile save "$_profile" > /dev/null 2>&1
 }
 
