@@ -19,6 +19,35 @@ _claude_profile_link_shared() {
   done
 }
 
+# Merge the shared hook bundles (~/.claude/hooks.d/*.json, symlinked from
+# claude-tools) into a profile's settings.json. Hooks are a JSON key, not a file,
+# so they can't be symlinked like skills/agents — instead we union them in,
+# idempotently (deduped by command string), so a fresh machine or a new profile
+# self-heals on the next switch. No-op without jq or a hooks.d dir.
+_claude_profile_ensure_hooks() {
+  local dir="$1"
+  local hooks_dir="$HOME/.claude/hooks.d"
+  [[ -d "$hooks_dir" ]] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  local settings="$dir/settings.json"
+  [[ -f "$settings" ]] || printf '{}\n' > "$settings"
+
+  local current merged frag
+  current=$(cat "$settings")
+  merged="$current"
+  for frag in "$hooks_dir"/*.json; do
+    [[ -e "$frag" ]] || continue
+    merged=$(printf '%s' "$merged" | jq --slurpfile f "$frag" '
+      reduce ($f[0].hooks // {} | to_entries[]) as $e (.;
+        .hooks[$e.key] = (((.hooks[$e.key] // []) + $e.value) | unique_by(tostring)))
+    ') || return 0
+  done
+
+  [[ "$merged" != "$current" ]] && printf '%s\n' "$merged" > "$settings"
+  return 0
+}
+
 # Auto-restore last active profile on shell start
 if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
   _last=$(cat "$CLAUDE_PROFILE_STATE")
@@ -42,6 +71,7 @@ claude() {
   fi
   if [[ -n "$_profile" && -d "$CLAUDE_PROFILES_DIR/$_profile" ]]; then
     export CLAUDE_CONFIG_DIR="$CLAUDE_PROFILES_DIR/$_profile"
+    _claude_profile_ensure_hooks "$CLAUDE_CONFIG_DIR"
   else
     _profile=""
   fi
@@ -89,6 +119,7 @@ claude-profile() {
       local dir="$CLAUDE_PROFILES_DIR/$name"
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
       _claude_profile_link_shared "$dir"
+      _claude_profile_ensure_hooks "$dir"
       export CLAUDE_CONFIG_DIR="$dir"
       echo "$name" > "$CLAUDE_PROFILE_STATE"
       echo "✓ Switched to '$name'"
@@ -100,6 +131,7 @@ claude-profile() {
       if [[ ! -d "$dir" ]]; then echo "Profile '$name' not found."; return 1; fi
       shift 2
       _claude_profile_link_shared "$dir"
+      _claude_profile_ensure_hooks "$dir"
       (
         export CLAUDE_CONFIG_DIR="$dir"
         [[ -f "$dir/profile.env" ]] && . "$dir/profile.env"
