@@ -31,15 +31,19 @@ fi
 # Override claude command to always sync profile before launching.
 # Profile is pinned at entry so post-save can't cross-contaminate if .active
 # changes mid-session.
+#
+# A per-shell $CLAUDE_PROFILE (e.g. injected by a terminal that pins a profile to
+# a workspace) wins over the global .active, so a profiled workspace launches its
+# own account without disturbing the default other terminals use.
 claude() {
-  local _profile=""
-  if [[ -f "$CLAUDE_PROFILE_STATE" ]]; then
+  local _profile="${CLAUDE_PROFILE:-}"
+  if [[ -z "$_profile" && -f "$CLAUDE_PROFILE_STATE" ]]; then
     _profile=$(cat "$CLAUDE_PROFILE_STATE")
-    if [[ -d "$CLAUDE_PROFILES_DIR/$_profile" ]]; then
-      export CLAUDE_CONFIG_DIR="$CLAUDE_PROFILES_DIR/$_profile"
-    else
-      _profile=""
-    fi
+  fi
+  if [[ -n "$_profile" && -d "$CLAUDE_PROFILES_DIR/$_profile" ]]; then
+    export CLAUDE_CONFIG_DIR="$CLAUDE_PROFILES_DIR/$_profile"
+  else
+    _profile=""
   fi
   (
     [[ -f "$CLAUDE_CONFIG_DIR/profile.env" ]] && . "$CLAUDE_CONFIG_DIR/profile.env"
