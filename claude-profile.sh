@@ -4,6 +4,10 @@
 
 CLAUDE_PROFILES_DIR="$HOME/.claude-profiles"
 CLAUDE_PROFILE_STATE="$CLAUDE_PROFILES_DIR/.active"
+# Shared hook bundles ({ "hooks": {…} } fragments) merged into each profile's
+# settings.json. Defaults to the claude-tools checkout; override to relocate.
+# No-op if the dir doesn't exist, so this is harmless on machines without it.
+CLAUDE_HOOKS_DIR="${CLAUDE_HOOKS_DIR:-$HOME/projects/claude-tools/hooks/hooks.d}"
 
 # Symlink shared resources from ~/.claude into a profile dir, unless already present.
 # A real file/dir at the destination overrides the shared default.
@@ -19,14 +23,14 @@ _claude_profile_link_shared() {
   done
 }
 
-# Merge the shared hook bundles (~/.claude/hooks.d/*.json, symlinked from
-# claude-tools) into a profile's settings.json. Hooks are a JSON key, not a file,
-# so they can't be symlinked like skills/agents — instead we union them in,
-# idempotently (deduped by command string), so a fresh machine or a new profile
-# self-heals on the next switch. No-op without jq or a hooks.d dir.
+# Merge the shared hook bundles ($CLAUDE_HOOKS_DIR/*.json) into a profile's
+# settings.json. Hooks are a JSON key, not a file, so they can't be symlinked like
+# skills/agents — instead we union them in, idempotently (deduped by command
+# string), so a fresh machine or a new profile self-heals on the next switch.
+# No-op without jq or the hooks dir.
 _claude_profile_ensure_hooks() {
   local dir="$1"
-  local hooks_dir="$HOME/.claude/hooks.d"
+  local hooks_dir="$CLAUDE_HOOKS_DIR"
   [[ -d "$hooks_dir" ]] || return 0
   command -v jq >/dev/null 2>&1 || return 0
 
